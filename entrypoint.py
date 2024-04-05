@@ -5,7 +5,7 @@
 # @Software : PyCharm
 
 # import the flask web framework
-from flask import Flask
+from flask import Flask, jsonify
 import json
 import redis as redis
 from flask import Flask, request
@@ -42,4 +42,25 @@ def record_engine_temperature():
 # practically identical to the above
 @app.route('/collect', methods=['POST'])
 def collect_engine_temperature():
-    return {"success": True}, 200
+    database = redis.Redis(host="redis", port=6379, db=0, decode_responses=True)
+
+    # 从 Redis 中检索引擎温度数据
+    engine_temperature_values = database.lrange(DATA_KEY, 0, -1)
+
+    # 计算最近的引擎温度
+    current_engine_temperature = float(engine_temperature_values[0]) if engine_temperature_values else None
+
+    # 计算平均引擎温度
+    if engine_temperature_values:
+        total_temperature = sum(float(temp) for temp in engine_temperature_values)
+        average_engine_temperature = total_temperature / len(engine_temperature_values)
+    else:
+        average_engine_temperature = None
+
+    # 构建响应字典
+    response_data = {
+        "current_engine_temperature": current_engine_temperature,
+        "average_engine_temperature": average_engine_temperature
+    }
+
+    return jsonify(response_data), 200
